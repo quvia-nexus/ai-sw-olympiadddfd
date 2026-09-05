@@ -1,0 +1,1421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>안심대피 — 상황 기반 대피소 추천</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-app:#0A0D11;
+    --frame-bg:#F1F3F5;
+    --surface:#FFFFFF;
+    --surface-2:#F7F8F9;
+    --ink:#0F1A24;
+    --ink-soft:#5A6A76;
+    --ink-faint:#98A5AF;
+    --line:#E4E8EB;
+    --line-soft:#EDF0F2;
+
+    --brand:#1B6F58;
+    --brand-2:#2C8C6E;
+    --brand-dark:#0F3F32;
+    --brand-soft:#E2F1EA;
+
+    --grade-a:#1E9E6B;
+    --grade-b:#2C79B0;
+    --grade-c:#DB8B2C;
+    --grade-d:#C85630;
+    --grade-f:#8A2E3B;
+
+    --danger:#C94848;
+    --danger-soft:#FBEAEA;
+    --warn-soft:#FFF3DF;
+    --warn-ink:#7A4B12;
+    --info-soft:#E9F1FA;
+    --info-ink:#2C5C7D;
+
+    --map-land:#E6EDE8;
+    --map-land2:#DCE6DF;
+    --map-road:#F4F7F5;
+    --map-park:#CFE4D3;
+    --map-river:#BFD9E8;
+    --map-block:#C7D2CC;
+
+    --radius-xl:26px;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:10px;
+
+    --shadow-sm:0 1px 2px rgba(15,26,36,.05);
+    --shadow-card:0 1px 1px rgba(15,26,36,.04), 0 10px 26px -14px rgba(15,26,36,.22);
+    --shadow-pop:0 20px 44px -16px rgba(15,26,36,.32);
+
+    --font-body:'Noto Sans KR',sans-serif;
+    --font-mono:'JetBrains Mono',monospace;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:var(--font-body);
+    background:
+      radial-gradient(circle at 18% 12%, #142019 0%, transparent 42%),
+      radial-gradient(circle at 85% 82%, #0E1620 0%, transparent 38%),
+      var(--bg-app);
+    min-height:100vh;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:40px 16px; color:var(--ink);
+  }
+  .stage{ display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .stage-label{ font-family:var(--font-mono); font-size:10.5px; letter-spacing:.16em; color:#5B6B78; text-transform:uppercase; }
+
+  .phone{
+    width:392px; max-width:92vw; height:824px; max-height:89vh;
+    background:var(--frame-bg); border-radius:46px; border:10px solid #05070A;
+    box-shadow:var(--shadow-pop), 0 0 0 1px rgba(255,255,255,.03) inset;
+    position:relative; overflow:hidden; display:flex; flex-direction:column;
+  }
+  .statusbar{
+    height:44px; flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    padding:0 27px; font-family:var(--font-mono); font-size:12.5px; font-weight:700; color:var(--ink);
+    background:var(--frame-bg); position:relative; z-index:6;
+  }
+  .statusbar .notch{ position:absolute; top:0; left:50%; transform:translateX(-50%); width:126px; height:25px; background:#05070A; border-radius:0 0 17px 17px; }
+  .statusbar .icons{ display:flex; gap:5px; align-items:center; }
+
+  .screens{ position:relative; flex:1 1 auto; min-height:0; }
+  .screen{
+    position:absolute; inset:0; display:flex; flex-direction:column;
+    opacity:0; pointer-events:none; transform:translateX(10px) scale(.99);
+    transition:opacity .32s cubic-bezier(.22,.8,.32,1), transform .32s cubic-bezier(.22,.8,.32,1);
+  }
+  .screen.active{ opacity:1; pointer-events:auto; transform:translateX(0) scale(1); }
+
+  .topbar{
+    flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:8px 18px 12px; background:var(--frame-bg);
+  }
+  .topbar h1{ font-size:17px; font-weight:800; margin:0; flex:1; letter-spacing:-.01em; }
+  .topbar .sub{ font-size:11px; color:var(--ink-soft); font-weight:600; margin-top:1px; }
+  .iconbtn{
+    width:34px; height:34px; border-radius:11px; border:1px solid var(--line); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink); flex:0 0 auto;
+    transition:transform .12s;
+  }
+  .iconbtn:active{ transform:scale(.9); }
+
+  .scroll{ flex:1 1 auto; overflow-y:auto; padding:0 18px 20px; -webkit-overflow-scrolling:touch; }
+  .scroll::-webkit-scrollbar{ width:0; }
+
+  /* ============ Icons ============ */
+  .ic{ display:inline-flex; flex:0 0 auto; }
+  .ic svg{ display:block; }
+
+  /* ============ Splash ============ */
+  .screen-splash{
+    background:
+      radial-gradient(circle at 50% 18%, rgba(44,140,110,.28) 0%, transparent 55%),
+      radial-gradient(circle at 50% 100%, rgba(20,50,42,.6) 0%, transparent 60%),
+      #0A0F0D;
+    align-items:center; justify-content:center; text-align:center; color:#fff; padding:40px; position:relative;
+  }
+  .splash-rings{ position:absolute; top:14%; left:50%; transform:translateX(-50%); width:280px; height:280px; }
+  .splash-rings span{
+    position:absolute; inset:0; border:1px solid rgba(78,180,150,.18); border-radius:50%; animation:pulseRing 3.6s ease-out infinite;
+  }
+  .splash-rings span:nth-child(2){ animation-delay:1.2s; }
+  .splash-rings span:nth-child(3){ animation-delay:2.4s; }
+  @keyframes pulseRing{ 0%{ transform:scale(.5); opacity:.9; } 100%{ transform:scale(1.15); opacity:0; } }
+  .splash-badge{
+    width:100px; height:100px; border-radius:28px;
+    background:linear-gradient(160deg, var(--brand-2) 0%, var(--brand-dark) 100%);
+    display:flex; align-items:center; justify-content:center; margin:0 auto 24px; position:relative; z-index:2;
+    box-shadow:0 22px 44px -14px rgba(30,111,92,.6);
+  }
+  .splash h2{ font-size:27px; font-weight:900; margin:0 0 9px; letter-spacing:-.02em; position:relative; z-index:2; }
+  .splash p{ font-size:13.5px; color:#A9BDB5; line-height:1.65; margin:0 0 32px; max-width:262px; position:relative; z-index:2; }
+  .btn-primary{
+    appearance:none; border:none; cursor:pointer; background:var(--brand-2); color:#fff;
+    font-family:var(--font-body); font-weight:700; font-size:14.5px; padding:15px 20px; border-radius:15px; width:100%;
+    box-shadow:0 14px 26px -10px rgba(30,111,92,.7); display:flex; align-items:center; justify-content:center; gap:8px;
+    transition:transform .12s;
+  }
+  .btn-primary:active{ transform:translateY(1px) scale(.99); }
+  .btn-ghost{
+    appearance:none; cursor:pointer; width:100%; background:var(--surface); color:var(--ink); border:1px solid var(--line);
+    font-family:var(--font-body); font-weight:700; font-size:13.5px; padding:13px 18px; border-radius:14px;
+    display:flex; align-items:center; justify-content:center; gap:7px; transition:transform .12s;
+  }
+  .btn-ghost:active{ transform:scale(.98); }
+  .splash-foot{ position:absolute; bottom:24px; left:0; right:0; text-align:center; font-size:10.5px; color:#54655F; font-family:var(--font-mono); letter-spacing:.08em; }
+
+  /* ============ Notices ============ */
+  .notice{
+    display:flex; gap:10px; align-items:flex-start; background:var(--brand-soft); border:1px solid #C7E4D8;
+    border-radius:var(--radius-md); padding:12px 13px; margin:0 0 12px; font-size:12.5px; line-height:1.55; color:var(--brand-dark);
+  }
+  .notice.warn{ background:var(--warn-soft); border-color:#F0D19E; color:var(--warn-ink); }
+  .notice.danger{ background:var(--danger-soft); border-color:#EFC2C2; color:#7C2B2B; }
+  .notice.info{ background:var(--info-soft); border-color:#CFE0F0; color:var(--info-ink); }
+  .notice b{ display:block; margin-bottom:2px; font-size:12.5px; }
+  .notice .ic{ margin-top:1px; }
+
+  /* ============ Map ============ */
+  .map-wrap{
+    position:relative; border-radius:var(--radius-xl); overflow:hidden; margin-bottom:12px;
+    border:1px solid var(--line); box-shadow:var(--shadow-card); background:var(--map-land);
+    touch-action:none;
+  }
+  .map-wrap svg{ display:block; width:100%; height:auto; }
+  .map-hint{
+    position:absolute; left:50%; top:10px; transform:translateX(-50%);
+    background:rgba(15,26,36,.82); color:#fff; font-size:11px; font-weight:700; padding:7px 12px; border-radius:999px;
+    display:flex; align-items:center; gap:6px; pointer-events:none; transition:opacity .4s, transform .4s; z-index:3;
+  }
+  .map-hint.hide{ opacity:0; transform:translate(-50%,-6px); }
+  .map-badge{
+    position:absolute; right:10px; bottom:10px; background:rgba(255,255,255,.92); backdrop-filter:blur(2px);
+    border-radius:12px; padding:7px 10px; font-size:10.5px; font-weight:700; color:var(--ink-soft);
+    display:flex; align-items:center; gap:6px; box-shadow:var(--shadow-sm);
+  }
+  .map-reset{
+    position:absolute; left:10px; bottom:10px; background:var(--surface); border:1px solid var(--line);
+    border-radius:11px; width:34px; height:34px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; box-shadow:var(--shadow-sm); color:var(--ink);
+  }
+  .map-reset:active{ transform:scale(.9); }
+
+  .live-rank{ margin-bottom:12px; }
+  .live-rank-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .live-rank-head .t{ font-size:12px; font-weight:800; color:var(--ink-soft); }
+  .live-rank-head .live-dot{ width:6px; height:6px; border-radius:50%; background:var(--grade-a); display:inline-block; margin-right:5px; animation:blink 1.6s ease-in-out infinite; }
+  @keyframes blink{ 0%,100%{ opacity:1; } 50%{ opacity:.25; } }
+  .live-row{
+    display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line-soft);
+    border-radius:13px; padding:9px 11px; margin-bottom:7px; box-shadow:var(--shadow-sm);
+  }
+  .live-row .lr-grade{
+    width:26px; height:26px; border-radius:8px; display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-size:12px; font-weight:800; color:#fff; flex:0 0 auto;
+  }
+  .live-row .lr-name{ flex:1; font-size:12.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .live-row .lr-dist{ font-family:var(--font-mono); font-size:11.5px; font-weight:700; color:var(--ink-soft); flex:0 0 auto; }
+
+  .disaster-row{ display:flex; gap:8px; margin-bottom:12px; overflow-x:auto; padding-bottom:2px; }
+  .dchip{
+    flex:0 0 auto; font-size:12px; font-weight:800; padding:9px 13px; border-radius:12px; border:1.5px solid var(--line);
+    background:var(--surface); color:var(--ink-soft); cursor:pointer; display:flex; align-items:center; gap:7px; white-space:nowrap;
+    transition:border-color .15s, background .15s, color .15s;
+  }
+  .dchip.on{ border-color:var(--brand-2); background:var(--brand-soft); color:var(--brand-dark); }
+  .dchip:active{ transform:scale(.96); }
+
+  .stepper-box{
+    display:flex; align-items:center; justify-content:space-between; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius-md); padding:12px 14px; margin-bottom:12px;
+  }
+  .stepper-box .lbl{ font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px; }
+  .stepper-box .lbl small{ display:block; font-size:10.5px; font-weight:600; color:var(--ink-soft); margin-top:2px; }
+  .stepper{ display:flex; align-items:center; gap:12px; }
+  .stepper button{
+    width:30px; height:30px; border-radius:9px; border:1px solid var(--line); background:var(--surface-2);
+    font-size:16px; font-weight:800; cursor:pointer; color:var(--ink); line-height:1;
+  }
+  .stepper button:active{ transform:scale(.9); }
+  .stepper .val{ font-family:var(--font-mono); font-weight:800; font-size:15px; min-width:18px; text-align:center; }
+
+  .filter-row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .chip{
+    font-size:12px; font-weight:700; padding:8px 13px; border-radius:999px; border:1px solid var(--line);
+    background:var(--surface); color:var(--ink-soft); cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:6px;
+    transition:background .15s, color .15s, border-color .15s;
+  }
+  .chip.on{ background:var(--ink); color:#fff; border-color:var(--ink); }
+  .chip:active{ transform:scale(.96); }
+
+  .tabs{ display:flex; gap:6px; margin-bottom:12px; background:#E9ECEE; padding:4px; border-radius:12px; }
+  .tab{ flex:1; text-align:center; padding:8px 4px; font-size:12.5px; font-weight:700; color:var(--ink-soft); border-radius:9px; cursor:pointer; }
+  .tab.on{ background:#fff; color:var(--ink); box-shadow:var(--shadow-sm); }
+
+  .summary-tags{ display:flex; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+  .stag{ font-size:10.5px; font-weight:700; padding:5px 10px; border-radius:999px; background:#E9ECEE; color:var(--ink-soft); display:flex; align-items:center; gap:5px; }
+
+  .section-label{ font-size:12px; font-weight:800; color:var(--ink-soft); margin:18px 0 8px; letter-spacing:.02em; display:flex; align-items:center; gap:6px; }
+
+  /* ============ Ring gauge (signature) ============ */
+  .ring{ position:relative; display:flex; align-items:center; justify-content:center; flex:0 0 auto; }
+  .ring svg{ transform:rotate(-90deg); }
+  .ring circle.trk{ transition:stroke .3s; }
+  .ring circle.fg{ transition:stroke-dasharray .5s cubic-bezier(.22,.8,.32,1), stroke .3s; }
+  .ring-val{ position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:800; line-height:1; }
+  .ring-val .n{ font-size:15px; transition:color .3s; }
+  .ring-val .g{ font-size:9px; margin-top:2px; letter-spacing:.06em; opacity:.85; }
+
+  /* ============ Shelter card ============ */
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px; margin-bottom:11px;
+    box-shadow:var(--shadow-card); cursor:pointer; display:flex; gap:13px; align-items:center;
+    animation:cardIn .38s cubic-bezier(.22,.8,.32,1) backwards;
+  }
+  @keyframes cardIn{ from{ opacity:0; transform:translateY(10px); } to{ opacity:1; transform:translateY(0); } }
+  .card:active{ transform:scale(.985); }
+  .card-body{ flex:1; min-width:0; }
+  .card-top{ display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+  .card-title{ font-size:14.5px; font-weight:800; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card-rank{
+    flex:0 0 auto; width:20px; height:20px; border-radius:7px; background:var(--ink); color:#fff;
+    font-family:var(--font-mono); font-size:11px; font-weight:800; display:flex; align-items:center; justify-content:center;
+  }
+  .card-meta{ font-size:11.5px; color:var(--ink-soft); display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+  .card-meta .dot{ width:3px; height:3px; border-radius:50%; background:var(--ink-faint); }
+  .badge{ font-size:10.5px; font-weight:800; padding:3px 8px; border-radius:6px; display:inline-flex; align-items:center; gap:4px; }
+  .badge-safe{ background:#E4F4EC; color:var(--grade-a); }
+  .badge-mid{ background:#FCEEDC; color:var(--grade-c); }
+  .badge-warn{ background:#FBEAEA; color:var(--danger); }
+  .badge-info{ background:var(--info-soft); color:var(--info-ink); }
+  .excluded-card{ opacity:.5; cursor:default; }
+  .excluded-card:active{ transform:none; }
+  .tag-excluded{ font-size:10.5px; font-weight:800; color:#fff; background:var(--ink-faint); padding:3px 8px; border-radius:6px; }
+  .empty-state{ font-size:12.5px; color:var(--ink-faint); padding:26px 14px; text-align:center; background:var(--surface); border:1px dashed var(--line); border-radius:var(--radius-lg); }
+
+  /* ============ Detail ============ */
+  .hero-img{
+    height:154px; border-radius:var(--radius-xl); margin-bottom:14px; position:relative; overflow:hidden;
+    background:linear-gradient(150deg,#1D3A30 0%, #0C1712 100%); display:flex; align-items:center; justify-content:center;
+  }
+  .hero-img .blob{ position:absolute; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle, rgba(78,180,150,.35), transparent 70%); top:-70px; right:-60px; }
+  .hero-img .blob2{ position:absolute; width:160px; height:160px; border-radius:50%; background:radial-gradient(circle, rgba(44,121,176,.22), transparent 70%); bottom:-60px; left:-40px; }
+  .hero-img .grid{ position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.05) 1px, transparent 1px); background-size:22px 22px; }
+  .hero-img .icwrap{ position:relative; z-index:2; color:#8FCBB1; }
+
+  .score-hero{ display:flex; align-items:center; gap:14px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-lg); padding:14px; margin-bottom:14px; box-shadow:var(--shadow-card); }
+  .score-hero-text{ flex:1; }
+  .score-hero-text .grade-word{ font-size:15px; font-weight:800; margin-bottom:3px; display:flex; align-items:center; gap:6px; }
+  .score-hero-text .sub{ font-size:11.5px; color:var(--ink-soft); }
+  .score-hero-text .profile{ font-size:10.5px; font-weight:700; color:var(--brand); margin-top:5px; background:var(--brand-soft); display:inline-block; padding:3px 8px; border-radius:6px; }
+
+  .infogrid{ display:grid; grid-template-columns:1fr 1fr; gap:9px; margin-bottom:14px; }
+  .infobox{ background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:11px 12px; }
+  .infobox .lbl{ font-size:10.5px; color:var(--ink-soft); margin-bottom:4px; font-weight:700; display:flex; align-items:center; gap:5px; }
+  .infobox .val{ font-size:13.5px; font-weight:800; }
+
+  .breakdown-row{ display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+  .breakdown-row .lbl{ width:84px; flex:0 0 auto; font-size:11px; color:var(--ink-soft); font-weight:700; display:flex; align-items:center; gap:5px; }
+  .breakdown-track{ flex:1; height:7px; background:#EAEDF0; border-radius:99px; overflow:hidden; }
+  .breakdown-fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--brand-2), var(--brand)); transition:width .5s cubic-bezier(.22,.8,.32,1); }
+  .breakdown-row .pts{ width:46px; flex:0 0 auto; text-align:right; font-family:var(--font-mono); font-size:11px; font-weight:700; color:var(--ink); }
+
+  .supply-row{ display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .supply-item{
+    display:flex; align-items:center; gap:11px; background:var(--surface); border:1px solid var(--line);
+    border-radius:var(--radius-md); padding:11px 12px;
+  }
+  .supply-item .si-ic{
+    flex:0 0 auto; width:34px; height:34px; border-radius:10px; background:var(--surface-2);
+    display:flex; align-items:center; justify-content:center; color:var(--ink-soft);
+  }
+  .supply-item .si-body{ flex:1; min-width:0; }
+  .supply-item .si-top{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-bottom:5px; }
+  .supply-item .si-name{ font-size:12.5px; font-weight:800; }
+  .supply-item .si-qty{ font-family:var(--font-mono); font-size:11.5px; font-weight:700; color:var(--ink-soft); flex:0 0 auto; }
+  .supply-item .si-track{ height:6px; background:#EAEDF0; border-radius:99px; overflow:hidden; }
+  .supply-item .si-fill{ height:100%; border-radius:99px; transition:width .5s cubic-bezier(.22,.8,.32,1); }
+  .supply-item .si-status{
+    flex:0 0 auto; font-size:10px; font-weight:800; padding:4px 8px; border-radius:999px; margin-left:10px;
+  }
+  .supply-foot{ font-size:10.5px; color:var(--ink-faint); margin-top:2px; line-height:1.5; }
+  .mgmt-row{ display:flex; align-items:center; gap:10px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:11px 12px; margin-bottom:8px; }
+  .mgmt-row .mi-ic{ flex:0 0 auto; width:30px; height:30px; border-radius:9px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; color:var(--ink-soft); }
+  .mgmt-row .mi-label{ font-size:10.5px; color:var(--ink-soft); font-weight:700; }
+  .mgmt-row .mi-val{ font-size:12.5px; font-weight:800; }
+
+  .action-row{ display:flex; gap:9px; margin-top:4px; }
+  .action-row .btn-primary, .action-row .btn-ghost{ padding:13px; font-size:13.5px; }
+
+  /* ============ Route ============ */
+  .route-map{ border-radius:var(--radius-xl); margin-bottom:14px; position:relative; overflow:hidden; border:1px solid var(--line); background:var(--map-land); }
+  .route-map svg{ display:block; width:100%; height:auto; }
+  .step{ display:flex; gap:12px; margin-bottom:13px; }
+  .step-ic{ flex:0 0 auto; width:32px; height:32px; border-radius:10px; background:var(--brand-soft); color:var(--brand-dark); display:flex; align-items:center; justify-content:center; }
+  .step-text{ font-size:13px; font-weight:700; }
+  .step-dist{ font-size:11px; color:var(--ink-soft); font-family:var(--font-mono); margin-top:1px; }
+  .step-line{ position:relative; }
+  .step-line::before{ content:''; position:absolute; left:15px; top:32px; bottom:-13px; width:1.5px; background:var(--line); }
+  .step:last-child .step-line::before{ display:none; }
+
+  /* ============ Congestion ============ */
+  .cong-hero{ display:flex; flex-direction:column; align-items:center; padding:18px 0 6px; }
+  .cong-hero .status-word{ font-size:16px; font-weight:800; margin-top:14px; display:flex; align-items:center; gap:6px; }
+  .cong-hero .status-sub{ font-size:11.5px; color:var(--ink-soft); margin-top:2px; }
+  .stat-row{ display:flex; gap:10px; margin:18px 0; }
+  .stat-box{ flex:1; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius-md); padding:12px; text-align:center; }
+  .stat-box .n{ font-family:var(--font-mono); font-size:16px; font-weight:800; }
+  .stat-box .l{ font-size:10px; color:var(--ink-soft); font-weight:700; margin-top:3px; }
+
+  .log-row{ display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--line-soft); }
+  .log-dot{ width:9px; height:9px; border-radius:50%; flex:0 0 auto; }
+  .log-text{ flex:1; font-size:12.5px; font-weight:700; }
+  .log-time{ font-size:10.5px; color:var(--ink-faint); font-family:var(--font-mono); }
+
+  /* ============ Report ============ */
+  .report-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+  .report-opt{ border:2px solid var(--line); border-radius:var(--radius-md); padding:15px 10px; text-align:center; cursor:pointer; background:var(--surface); transition:border-color .15s, background .15s; }
+  .report-opt .n{ font-size:13px; font-weight:800; margin-top:7px; }
+  .report-opt.sel{ border-color:var(--brand-2); background:var(--brand-soft); }
+  textarea.note{
+    width:100%; border:1px solid var(--line); border-radius:var(--radius-md); padding:11px; font-family:var(--font-body);
+    font-size:12.5px; resize:none; height:62px; margin-bottom:14px; background:var(--surface);
+  }
+  .toast{
+    position:absolute; left:18px; right:18px; bottom:96px; background:var(--ink); color:#fff; padding:13px 15px; border-radius:14px;
+    font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:9px; opacity:0; transform:translateY(10px);
+    transition:opacity .25s, transform .25s; pointer-events:none; z-index:30;
+  }
+  .toast.show{ opacity:1; transform:translateY(0); }
+
+  ::-webkit-scrollbar{ display:none; }
+  @media (prefers-reduced-motion: reduce){ *{ animation-duration:.001ms !important; transition-duration:.001ms !important; } }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="stage-label">안심대피 · 상황 기반 대피소 추천 프로토타입</div>
+  <div class="phone">
+    <div class="statusbar">
+      <div class="notch"></div>
+      <span>9:41</span>
+      <div class="icons">
+        <svg width="16" height="11" viewBox="0 0 16 11" fill="none"><rect x="0" y="7" width="3" height="4" rx=".5" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx=".5" fill="currentColor"/><rect x="9" y="2.5" width="3" height="8.5" rx=".5" fill="currentColor"/><rect x="13.5" y="0" width="2.5" height="11" rx=".5" fill="currentColor" opacity=".35"/></svg>
+        <svg width="22" height="11" viewBox="0 0 22 11" fill="none"><rect x="0.5" y="0.5" width="19" height="10" rx="2.5" stroke="currentColor"/><rect x="2" y="2" width="16" height="7" rx="1.3" fill="currentColor"/><rect x="20.5" y="3.5" width="1.5" height="4" rx=".7" fill="currentColor"/></svg>
+      </div>
+    </div>
+
+    <div class="screens">
+
+      <!-- SPLASH -->
+      <div class="screen screen-splash active" data-screen="splash">
+        <div class="splash-rings"><span></span><span></span><span></span></div>
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;">
+          <div class="splash-badge">
+            <svg width="44" height="44" viewBox="0 0 24 24" fill="none"><path d="M12 2 4 5v6c0 5 3.4 8.9 8 10 4.6-1.1 8-5 8-10V5l-8-3Z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/><path d="M9 12.2l2.1 2.1L15.3 10" stroke="#fff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <h2>안심대피</h2>
+          <p>가장 가까운 곳이 아니라,<br>지금 상황에서 가장 안전하고<br>이용 가능한 대피소를 찾아드립니다.</p>
+          <button class="btn-primary" onclick="go('search')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+            현재 위치로 대피소 찾기
+          </button>
+        </div>
+        <div class="splash-foot">SITUATIONAL SHELTER RECOMMENDATION SYSTEM</div>
+      </div>
+
+      <!-- SEARCH -->
+      <div class="screen" data-screen="search">
+        <div class="topbar"><div><h1>대피소 검색</h1><div class="sub">위치를 드래그해서 이동해보세요</div></div></div>
+        <div class="scroll">
+          <div class="notice">
+            <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5"/><circle cx="12" cy="16" r=".6" fill="currentColor" stroke="none"/></svg></span>
+            <div><b>이 앱은 예약 기능이 없습니다.</b>실시간 정보로 가장 안전하고 이용 가능한 대피소를 안내하며, 정부·관계기관의 공식 안내를 항상 우선합니다.</div>
+          </div>
+
+          <div id="dataSourceBanner"></div>
+          <div class="map-wrap" id="mapWrap"></div>
+
+          <div class="live-rank">
+            <div class="live-rank-head"><div class="t"><span class="live-dot"></span>지금 위치 기준 실시간 추천</div></div>
+            <div id="liveRankWrap"></div>
+          </div>
+
+          <div class="section-label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg> 재난 유형 선택</div>
+          <div class="disaster-row" id="disasterRow"></div>
+
+          <div class="stepper-box">
+            <div class="lbl"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3.1-5.5 7-5.5s7 2.2 7 5.5"/><circle cx="17.5" cy="8.5" r="2.3"/><path d="M17 12.8c2.7.4 4.8 2.3 4.8 4.9"/></svg><div>동행 인원<small>본인 포함 인원 수</small></div></div>
+            <div class="stepper">
+              <button onclick="changeGroup(-1)">−</button>
+              <div class="val" id="groupVal">1</div>
+              <button onclick="changeGroup(1)">+</button>
+            </div>
+          </div>
+
+          <div class="filter-row" id="filterRow"></div>
+
+          <div class="section-label">경상북도 경산시 압량읍 · 현재 위치 기준 반경 2km</div>
+        </div>
+        <div style="padding:0 18px 18px;">
+          <button class="btn-primary" onclick="renderList();go('list')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+            주변 대피소 목록 보기
+          </button>
+        </div>
+      </div>
+
+      <!-- LIST -->
+      <div class="screen" data-screen="list">
+        <div class="topbar">
+          <div class="iconbtn" onclick="go('search')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4 7 12l8 8"/></svg></div>
+          <div><h1>대피소 목록</h1><div class="sub" id="listSub"></div></div>
+        </div>
+        <div class="scroll">
+          <div id="listOfflineBanner"></div>
+          <div class="summary-tags" id="summaryTags"></div>
+          <div class="tabs">
+            <div class="tab on" onclick="setSort(this,'score')">추천순</div>
+            <div class="tab" onclick="setSort(this,'dist')">거리순</div>
+            <div class="tab" onclick="setSort(this,'cong')">혼잡도순</div>
+          </div>
+          <div id="listWrap"></div>
+          <div class="section-label" id="excludedLabel" style="display:none;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M6 6l12 12"/></svg> 추천 목록에서 제외됨</div>
+          <div id="excludedWrap"></div>
+        </div>
+      </div>
+
+      <!-- DETAIL -->
+      <div class="screen" data-screen="detail">
+        <div class="topbar">
+          <div class="iconbtn" onclick="go('list')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4 7 12l8 8"/></svg></div>
+          <h1 id="detailTitle">대피소 상세</h1>
+        </div>
+        <div class="scroll">
+          <div id="detailOfflineBanner"></div>
+          <div id="detailBody"></div>
+        </div>
+      </div>
+
+      <!-- ROUTE -->
+      <div class="screen" data-screen="route">
+        <div class="topbar">
+          <div class="iconbtn" onclick="go('detail')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4 7 12l8 8"/></svg></div>
+          <h1>이동 경로 안내</h1>
+        </div>
+        <div class="scroll">
+          <div id="routeOfflineBanner"></div>
+          <div class="notice danger">
+            <span class="ic"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/></svg></span>
+            <div><b>실제 재난 상황 안내</b>앱 정보보다 정부·관계기관의 공식 대피 안내를 항상 우선하세요.</div>
+          </div>
+          <div id="routeAccessNote"></div>
+          <div class="route-map" id="routeMap"></div>
+          <div class="section-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M6 8.2V13a4 4 0 0 0 4 4h1"/></svg> 단계별 경로 안내</div>
+          <div id="routeSteps"></div>
+          <button class="btn-primary" onclick="showToast('길찾기를 시작합니다')">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l18-8-8 18-2.5-7.5L3 11Z"/></svg> 안내 시작
+          </button>
+        </div>
+      </div>
+
+      <!-- CONGESTION -->
+      <div class="screen" data-screen="congestion">
+        <div class="topbar">
+          <div class="iconbtn" onclick="go('detail')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4 7 12l8 8"/></svg></div>
+          <h1>현재 혼잡도 확인</h1>
+        </div>
+        <div class="scroll">
+          <div id="congOfflineBanner"></div>
+          <div class="cong-hero" id="congHero"></div>
+          <div class="stat-row" id="congStats"></div>
+          <div class="section-label"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg> 현장 신고 내역 (최근)</div>
+          <div id="congLog"></div>
+          <button class="btn-ghost" style="margin-top:14px;" onclick="go('report')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10v4a1 1 0 0 0 1 1h2l4 4V5l-4 4H4a1 1 0 0 0-1 1Z"/><path d="M15 8.5a4 4 0 0 1 0 7"/><path d="M17.5 5.5a8 8 0 0 1 0 13"/></svg> 혼잡도 신고하기</button>
+        </div>
+      </div>
+
+      <!-- REPORT -->
+      <div class="screen" data-screen="report">
+        <div class="topbar">
+          <div class="iconbtn" onclick="go('congestion')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4 7 12l8 8"/></svg></div>
+          <h1>혼잡 신고하기</h1>
+        </div>
+        <div class="scroll">
+          <div id="reportOfflineBanner"></div>
+          <div class="notice">
+            <span class="ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-6.1 7-11.5A7 7 0 0 0 5 9.5C5 14.9 12 21 12 21Z"/><circle cx="12" cy="9.5" r="2.4"/></svg></span>
+            <div id="reportShelterName" style="font-weight:800;">대피소 선택 안됨</div>
+          </div>
+          <div class="section-label">현재 현장 혼잡도를 선택하세요</div>
+          <div class="report-grid" id="reportGrid"></div>
+          <div class="section-label">추가 내용 (선택)</div>
+          <textarea class="note" id="reportNote" placeholder="현장 상황을 간단히 입력해주세요."></textarea>
+          <button class="btn-primary" onclick="submitReport()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12.5l5.5 5.5L20 6"/></svg> 신고하기</button>
+          <p style="font-size:11px;color:var(--ink-faint);line-height:1.6;margin-top:10px;">신고된 정보는 검토 후 반영됩니다. 허위 정보 신고는 다른 사람에게 큰 피해를 줄 수 있습니다.</p>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="toast" id="toast"></div>
+  </div>
+</div>
+
+<script id="app-script">
+/* ============================================================
+   ICON HELPERS (for content generated in JS)
+============================================================ */
+function svg(inner, size=16, sw=1.7){
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+}
+const ICON = {
+  water: svg('<path d="M12 3c-3.2 4.2-6 7.8-6 11.2A6 6 0 0 0 18 14.2C18 10.8 15.2 7.2 12 3Z"/>'),
+  food: svg('<path d="M5 2v7M8 2v7M5 9c0 1.4.8 2.2 1.5 2.5V22M8 2v7M14 2c-1.8 0-3 2.3-3 5.2 0 2.6 1 4.3 3 4.8V22"/>'),
+  medkit: svg('<rect x="3" y="8" width="18" height="12" rx="2"/><path d="M9 8V6a3 3 0 0 1 3-3h0a3 3 0 0 1 3 3v2"/><path d="M12 12v4M10 14h4"/>'),
+  blanket: svg('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M8 10v9M13 5v5"/>'),
+  toilet: svg('<circle cx="12" cy="7" r="2.3"/><path d="M6 21v-6a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v6M9 21v-4M15 21v-4"/>'),
+  wheelchair: svg('<circle cx="9" cy="5" r="1.8"/><path d="M9 8v6l-3.5 5M9 14h6l3 5M9 11h5.5"/><circle cx="14" cy="17" r="4"/>'),
+  wifiOff: svg('<path d="M2 8.5a15 15 0 0 1 8-4.1M22 8.5a15 15 0 0 0-6-3.4M5.5 12a10 10 0 0 1 4-2.1M18.5 12a10 10 0 0 0-3.2-2M9 15.5a5 5 0 0 1 6 0"/><circle cx="12" cy="19" r="1" fill="currentColor" stroke="none"/><path d="M2 2l20 20" stroke-width="1.7"/>'),
+  earthquake: svg('<path d="M3 18h3l2-4 2 6 2-8 2 6h4"/><path d="M3 21h18"/>'),
+  fire: svg('<path d="M12 22c4 0 6-2.7 6-6 0-3-1.6-4.6-2.4-6.7-.4 1.6-1.2 2.4-2 2.4.6-3-1-5.7-3-7.2.3 2-.4 3.6-1.8 5C7.2 11 6 12.8 6 16c0 3.3 2 6 6 6Z"/>'),
+  shieldWar: svg('<path d="M12 2 4 5v6c0 5 3.4 8.9 8 10 4.6-1.1 8-5 8-10V5l-8-3Z"/>'),
+  compass: svg('<circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-4-2 2-6 4 2Z"/>'),
+  share: svg('<circle cx="18" cy="5" r="2.3"/><circle cx="6" cy="12" r="2.3"/><circle cx="18" cy="19" r="2.3"/><path d="M8.1 10.9l7.8-4.3M8.1 13.1l7.8 4.3"/>', 16, 1.6),
+  routeIcon: svg('<circle cx="6" cy="6" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M6 8.2V13a4 4 0 0 0 4 4h1"/>', 16, 1.6),
+  building: svg('<rect x="4" y="8" width="16" height="13" rx="1"/><path d="M8 21V4l8 3v14"/><path d="M8 12h1M8 16h1M15 10h1M15 14h1M15 18h1"/>', 44, 1.4),
+  arrowUp: svg('<path d="M12 19V5M6 11l6-6 6 6"/>'),
+  arrowRight: svg('<path d="M5 12h14M13 6l6 6-6 6"/>'),
+  arrowLeft: svg('<path d="M19 12H5M11 6l-6 6 6 6"/>'),
+  flag: svg('<path d="M6 21V4M6 4h11l-2.5 3.5L17 11H6"/>'),
+  warningTri: svg('<path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><circle cx="12" cy="17" r=".6" fill="currentColor" stroke="none"/>'),
+  activity: svg('<path d="M3 12h4l2 7 4-14 2 7h6"/>'),
+  flashlight: svg('<path d="M9 3h6l1 3-1 2v11a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V8l-1-2 1-3Z"/><path d="M9 8h6"/>'),
+  phoneIcon: svg('<path d="M5 4h3l1.5 4-2 1.5a12 12 0 0 0 6 6l1.5-2 4 1.5v3a2 2 0 0 1-2 2C10 20 4 14 4 6a2 2 0 0 1 1-2Z"/>', 14, 1.7),
+  calendarIcon: svg('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 9h18M8 3v4M16 3v4"/>', 14, 1.7),
+};
+ICON.alert = ICON.warningTri;
+
+/* ============================================================
+   생필품 재고 항목 정의 — 대피소 정원(capacity) 대비 권장 수량을
+   계산해 실제 재고와 비교합니다.
+============================================================ */
+const ITEM_DEFS = [
+  { key:'water',   label:'생수',        unit:'병', icon:'water',      rec:(cap)=>cap },
+  { key:'food',    label:'비상식량',    unit:'개', icon:'food',       rec:(cap)=>cap },
+  { key:'medkit',  label:'구급키트',    unit:'세트', icon:'medkit',   rec:(cap)=>Math.ceil(cap/50)+1 },
+  { key:'blanket', label:'담요',        unit:'장', icon:'blanket',    rec:(cap)=>Math.round(cap*0.5) },
+  { key:'light',   label:'손전등/랜턴', unit:'개', icon:'flashlight', rec:(cap)=>Math.ceil(cap/20) },
+  { key:'toilet',  label:'간이 화장실용품', unit:'개', icon:'toilet', rec:(cap)=>Math.ceil(cap/30) },
+];
+function stockStatus(qty, rec){
+  if(qty<=0) return {label:'없음', color:'#8A2E3B'};
+  const ratio = rec>0 ? qty/rec : 1;
+  if(ratio < 0.4) return {label:'심각 부족', color:'#C94848'};
+  if(ratio < 0.75) return {label:'부족', color:'#DB8B2C'};
+  if(ratio < 1) return {label:'양호', color:'#D9B23C'};
+  return {label:'충분', color:'#1E9E6B'};
+}
+function computeSupplyInfo(s){
+  return ITEM_DEFS.map(def=>{
+    const qty = (s.stock && s.stock[def.key]) || 0;
+    const rec = Math.max(1, def.rec(s.capacity));
+    const ratio = clamp(qty/rec, 0, 1);
+    const st = stockStatus(qty, rec);
+    return { ...def, qty, rec, ratio, status:st.label, color:st.color };
+  });
+}
+function supplyAvgRatio(s){
+  const infos = computeSupplyInfo(s);
+  return infos.reduce((a,b)=>a+b.ratio, 0) / infos.length;
+}
+
+/* ============================================================
+   DATA — shelters use fixed map coordinates (x,y) so distance
+   is derived live from the user's draggable position.
+
+   지역: 경상북도 경산시 압량읍
+   아래 SHELTERS는 실제 인증키가 없을 때 보여주는 예시(샘플) 데이터이며,
+   실제 행정동/리 이름(부적리·신대리·현흥리·인안리)은 압량읍의 실제 법정리를
+   반영했지만, 개별 시설의 수용인원·물품·혼잡도 수치는 예시입니다.
+   실제 민방위대피소 데이터는 아래 "실제 공공데이터 연동" 섹션을 통해
+   행정안전부(재난안전데이터공유플랫폼) API로 자동 대체됩니다.
+============================================================ */
+const MAP_VB_W = 320, MAP_VB_H = 232;
+const SCALE_PX_PER_KM = 80;
+const REGION_LABEL = '경상북도 경산시 압량읍';
+
+let SHELTERS = [
+  { id:1, name:'압량읍 부적리 대피소 (예시)', x:198, y:78, capacity:200, occupied:80,
+    stock:{water:184, food:160, medkit:6, blanket:140, light:12, toilet:7},
+    manager:'압량읍행정복지센터', phone:'053-804-7615', lastCheck:'2026.08.15',
+    facilitySafety:3, routeSafety:3, operating:true, accessible:true, address:'경북 경산시 압량읍 부적리 일대', area:'1,200㎡ · 지하 1층' },
+  { id:2, name:'압량읍 신대리 대피소 (예시)', x:214, y:150, capacity:120, occupied:40,
+    stock:{water:96, food:72, medkit:3, blanket:40, light:5, toilet:0},
+    manager:'압량읍행정복지센터', phone:'053-804-7615', lastCheck:'2026.08.02',
+    facilitySafety:2, routeSafety:2, operating:true, accessible:true, address:'경북 경산시 압량읍 신대리 일대', area:'860㎡ · 지하 1층' },
+  { id:3, name:'압량읍 현흥리 대피소 (예시)', x:78, y:160, capacity:500, occupied:200,
+    stock:{water:450, food:380, medkit:10, blanket:200, light:20, toilet:15},
+    manager:'압량읍행정복지센터', phone:'053-804-7615', lastCheck:'2026.08.10',
+    facilitySafety:2, routeSafety:3, operating:true, accessible:false, address:'경북 경산시 압량읍 현흥리 일대', area:'3,400㎡ · 지하 2층' },
+  { id:4, name:'압량읍 인안리 대피소 (예시)', x:70, y:56, capacity:100, occupied:80,
+    stock:{water:60, food:0, medkit:2, blanket:50, light:3, toilet:0},
+    manager:'압량읍행정복지센터', phone:'053-804-7615', lastCheck:'2026.06.20',
+    facilitySafety:1, routeSafety:2, operating:true, accessible:false, address:'경북 경산시 압량읍 인안리 일대', area:'520㎡ · 지하 1층' },
+  { id:5, name:'압량읍 부적리 공영주차장 대피소 (예시)', x:140, y:222, capacity:80, occupied:80,
+    stock:{water:30, food:0, medkit:0, blanket:0, light:1, toilet:0},
+    manager:'압량읍행정복지센터', phone:'053-804-7615', lastCheck:'2026.03.11',
+    facilitySafety:1, routeSafety:1, operating:true, accessible:false, address:'경북 경산시 압량읍 부적리 일대', area:'400㎡ · 지하 1층' },
+  { id:6, name:'압량읍 신대리 지하보도 대피소 (예시)', x:296, y:70, capacity:150, occupied:0,
+    stock:{water:140, food:130, medkit:4, blanket:0, light:10, toilet:10},
+    manager:'압량읍행정복지센터', phone:'053-804-7615', lastCheck:'2025.11.30',
+    facilitySafety:2, routeSafety:2, operating:false, accessible:true, address:'경북 경산시 압량읍 신대리 일대', area:'900㎡ · 지하 1층' },
+];
+
+const CONG_LOG = {
+  1:[{level:'여유', t:'1분 전'},{level:'여유', t:'12분 전'},{level:'보통', t:'34분 전'}],
+  2:[{level:'보통', t:'5분 전'},{level:'보통', t:'20분 전'}],
+  3:[{level:'여유', t:'2분 전'},{level:'여유', t:'18분 전'}],
+  4:[{level:'혼잡', t:'3분 전'},{level:'혼잡', t:'25분 전'}],
+  5:[{level:'수용 어려움', t:'1분 전'}],
+  6:[],
+};
+
+/* ============================================================
+   실제 공공데이터 연동 (행정안전부 · 재난안전데이터공유플랫폼)
+   ------------------------------------------------------------
+   데이터셋: 민방위대피소 현황 (DSSP-IF-00195)
+   출처: https://www.safetydata.go.kr  (회원가입 후 "인증키" 무료 발급)
+
+   사용 방법:
+   1) https://www.safetydata.go.kr 에서 회원가입 → 오픈API → 민방위대피소
+      데이터셋(DSSP-IF-00195) 신청 → 승인 후 인증키 발급
+   2) 아래 SAFETY_API_KEY 에 발급받은 키를 붙여넣기
+   3) 새로고침하면 예시 데이터 대신 실제 압량읍 대피소 데이터가 자동 로드됨
+      (API가 CORS를 막아 브라우저에서 직접 호출이 안 될 경우, 학원
+       서버에 간단한 프록시(예: PHP/Node 한 파일)를 두면 해결됩니다.)
+
+   정부 데이터가 제공하는 항목: 시설명, 주소, 위도/경도, 최대수용인원, 개방여부
+   정부 데이터에 없는 항목(현재 남은 인원·물품·시설안전성·경로안전성)은
+   이 앱의 핵심 아이디어대로 추정치/신고 기반으로 채워야 합니다.
+============================================================ */
+const SAFETY_API_BASE = 'https://www.safetydata.go.kr/V2/api/DSSP-IF-00195';
+const SAFETY_API_KEY = '';               // ← 여기에 발급받은 인증키를 입력하세요
+const TARGET_EMD_KEYWORD = '압량';        // 읍면동명 필터 (압량읍)
+let usingRealData = false;
+
+function dmsToDD(d,m,s){ return (Number(d)||0) + (Number(m)||0)/60 + (Number(s)||0)/3600; }
+function haversineKm(lat1,lon1,lat2,lon2){
+  const R=6371, toRad=v=>v*Math.PI/180;
+  const dLat=toRad(lat2-lat1), dLon=toRad(lon2-lon1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function fetchRealShelters(){
+  if(!SAFETY_API_KEY) return null;
+  try{
+    const url = `${SAFETY_API_BASE}?servicekey=${encodeURIComponent(SAFETY_API_KEY)}&returnType=json&pageNo=1&numOfRows=100`;
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    const rows = (json && json.data) || [];
+    const filtered = rows.filter(r => (r.EMD_NM || '').includes(TARGET_EMD_KEYWORD));
+    if(!filtered.length) return null;
+
+    const withLatLng = filtered.map(r => ({
+      raw: r,
+      lat: dmsToDD(r.LAT_PROVIN, r.LAT_MIN, r.LAT_SEC),
+      lng: dmsToDD(r.LOT_PROVIN, r.LOT_MIN, r.LOT_SEC),
+    }));
+    const centerLat = withLatLng.reduce((s,x)=>s+x.lat,0) / withLatLng.length;
+    const centerLng = withLatLng.reduce((s,x)=>s+x.lng,0) / withLatLng.length;
+    const kmPerDegLat = 111.0;
+    const kmPerDegLng = 111.0 * Math.cos(centerLat * Math.PI/180);
+
+    return withLatLng.map((item, i) => {
+      const r = item.raw;
+      const dxKm = (item.lng - centerLng) * kmPerDegLng;
+      const dyKm = (item.lat - centerLat) * kmPerDegLat;
+      return {
+        id: 1000 + i,
+        name: r.FCLT_NM || '이름없음',
+        address: r.FCLT_ADDR_RONA || r.FCLT_ADDR_LOTNO || REGION_LABEL,
+        x: clamp(MAP_VB_W/2 + dxKm*SCALE_PX_PER_KM, 12, MAP_VB_W-12),
+        y: clamp(MAP_VB_H/2 - dyKm*SCALE_PX_PER_KM, 12, MAP_VB_H-12),
+        capacity: Number(r.SHNT_PSBLTY_NOPE) || 0,
+        occupied: 0, // 정부 데이터에 없음 — 실사용 시 신고 기반으로 갱신 필요
+        stock:{water:0, food:0, medkit:0, blanket:0, light:0, toilet:0}, // 정부 데이터에 없음(추정 불가 항목)
+        manager: '관할 행정복지센터 문의 필요', phone:'', lastCheck:'정보 없음',
+        facilitySafety:2, routeSafety:2, // 정부 데이터에 없음 (기본값)
+        operating: r.OPN_YN === 'Y',
+        accessible: false,
+        area: '정보 없음 (공공데이터 미제공)',
+        isRealData: true,
+      };
+    });
+  } catch(e){
+    console.warn('공공데이터 연동 실패:', e.message);
+    return null;
+  }
+}
+
+
+
+const GRADE_COLOR = {A:'var(--grade-a)', B:'var(--grade-b)', C:'var(--grade-c)', D:'var(--grade-d)', F:'var(--grade-f)'};
+const GRADE_HEX   = {A:'#1E9E6B', B:'#2C79B0', C:'#DB8B2C', D:'#C85630', F:'#8A2E3B'};
+const GRADE_WORD  = {A:'적극 추천', B:'이용 가능', C:'주의 필요', D:'추천하지 않음', F:'이용 불가'};
+
+const WEIGHT_PROFILES = {
+  default:   {dist:25, cap:20, supply:15, facility:15, cong:10, route:10, op:5, icon:'compass'},
+  earthquake:{dist:15, cap:15, supply:10, facility:30, cong:5,  route:20, op:5, icon:'earthquake'},
+  fire:      {dist:20, cap:15, supply:10, facility:20, cong:5,  route:25, op:5, icon:'fire'},
+  war:       {dist:15, cap:15, supply:25, facility:20, cong:10, route:10, op:5, icon:'shieldWar'},
+};
+const DISASTER_LABEL = {
+  default:'기본', earthquake:'지진 대응', fire:'화재 대응', war:'전시상황 대응'
+};
+const DISASTER_DESC = {
+  default:'표준 가중치로 종합 평가합니다.',
+  earthquake:'시설·구조 안전성 비중을 크게 높였습니다 (붕괴 위험 우선 고려).',
+  fire:'이동 경로 안전성 비중을 가장 높였습니다 (화재 확산 경로 회피).',
+  war:'필수 물품 보유 비중을 높였습니다 (장기 체류 대비).',
+};
+
+/* ============================================================
+   SCORING ENGINE
+============================================================ */
+function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
+function pxDist(ax,ay,bx,by){ return Math.hypot(ax-bx, ay-by); }
+
+function scoreShelter(s, w, distanceKm){
+  const remaining = s.capacity - s.occupied;
+  const excluded = !s.operating || remaining <= 0;
+
+  const distScore = Math.round(w.dist * clamp(1 - distanceKm/3, 0, 1));
+  const remRatio = clamp(remaining / s.capacity, 0, 1);
+  const capScore = Math.round(w.cap * remRatio);
+  const supplyScore = Math.round(w.supply * supplyAvgRatio(s));
+  const facilityScore = Math.round(w.facility * (s.facilitySafety/3));
+  const occRatio = clamp(s.occupied / s.capacity, 0, 1);
+  const congScore = Math.round(w.cong * (1 - occRatio));
+  const routeScore = Math.round(w.route * (s.routeSafety/3));
+  const opScore = s.operating ? w.op : 0;
+
+  const total = excluded ? 0 : (distScore+capScore+supplyScore+facilityScore+congScore+routeScore+opScore);
+  let grade = 'F';
+  if(total>=80) grade='A'; else if(total>=60) grade='B'; else if(total>=40) grade='C'; else if(total>=20) grade='D';
+
+  return { distanceKm, remaining, remRatio, occRatio, excluded, total, grade,
+    breakdown:[
+      {label:'거리', pts:distScore, max:w.dist, icon:'compass'},
+      {label:'남은 자리', pts:capScore, max:w.cap, icon:'users'},
+      {label:'필수 물품', pts:supplyScore, max:w.supply, icon:'water'},
+      {label:'시설 안전성', pts:facilityScore, max:w.facility, icon:'shieldWar'},
+      {label:'현재 혼잡도', pts:congScore, max:w.cong, icon:'users'},
+      {label:'이동 경로', pts:routeScore, max:w.route, icon:'routeIcon'},
+      {label:'운영 여부', pts:opScore, max:w.op, icon:'compass'},
+    ]};
+}
+function congestionLevel(occRatio){
+  if(occRatio >= 1) return {label:'수용 어려움', color:'var(--danger)', hex:'#C94848'};
+  if(occRatio >= 0.9) return {label:'혼잡', color:'var(--grade-c)', hex:'#DB8B2C'};
+  if(occRatio >= 0.7) return {label:'보통', color:'#D9B23C', hex:'#D9B23C'};
+  return {label:'여유', color:'var(--grade-a)', hex:'#1E9E6B'};
+}
+
+/* ============================================================
+   APP STATE
+============================================================ */
+let userPos = { x: 150, y: 128 };
+let currentDisasterType = 'default';
+let groupSize = 1;
+let accessibleOnly = false;
+let offlineMode = false;
+let offlineSince = null;
+let currentSort = 'score';
+let currentShelterId = null;
+let hasDraggedOnce = false;
+let SCORED = [];
+
+function recomputeScored(){
+  const w = WEIGHT_PROFILES[currentDisasterType];
+  SCORED = SHELTERS.map(s => {
+    const d = pxDist(userPos.x, userPos.y, s.x, s.y) / SCALE_PX_PER_KM;
+    return { ...s, ...scoreShelter(s, w, d) };
+  });
+}
+recomputeScored();
+
+/* ============================================================
+   NAVIGATION
+============================================================ */
+function go(name){
+  document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
+  document.querySelector(`.screen[data-screen="${name}"]`).classList.add('active');
+  const scr = document.querySelector(`.screen[data-screen="${name}"] .scroll`);
+  if(scr) scr.scrollTop = 0;
+  if(name==='search'){ renderControls(); renderLiveRank(); }
+  if(name==='list') renderList();
+  if(name==='detail') renderDetail(currentShelterId);
+  if(name==='route') renderRoute(currentShelterId);
+  if(name==='congestion') renderCongestion(currentShelterId);
+  if(name==='report') renderReport(currentShelterId);
+  renderOfflineBanners();
+}
+function openDetail(id){ currentShelterId = id; go('detail'); }
+
+/* ============================================================
+   RING GAUGE BUILDER (signature element)
+============================================================ */
+function ringSVG(pct, colorHex, size, stroke){
+  const r = (size - stroke)/2;
+  const c = 2*Math.PI*r;
+  const dash = c * clamp(pct,0,1);
+  return `<div class="ring" style="width:${size}px;height:${size}px;">
+    <svg width="${size}" height="${size}">
+      <circle class="trk" cx="${size/2}" cy="${size/2}" r="${r}" stroke="#E7EBEE" stroke-width="${stroke}" fill="none"/>
+      <circle class="fg" cx="${size/2}" cy="${size/2}" r="${r}" stroke="${colorHex}" stroke-width="${stroke}" fill="none"
+        stroke-linecap="round" stroke-dasharray="${dash} ${c}"/>
+    </svg>
+  </div>`;
+}
+
+/* ============================================================
+   MAP — static city backdrop (drawn once) + dynamic layer
+============================================================ */
+function buildMapBase(){
+  return `
+  <svg viewBox="0 0 ${MAP_VB_W} ${MAP_VB_H}" width="100%" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="landGrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#EBF1EC"/>
+        <stop offset="100%" stop-color="#E1EAE3"/>
+      </linearGradient>
+      <filter id="blockShadow" x="-50%" y="-50%" width="200%" height="200%">
+        <feDropShadow dx="0" dy="1.5" stdDeviation="1.5" flood-color="#0F1A24" flood-opacity="0.12"/>
+      </filter>
+    </defs>
+    <rect x="0" y="0" width="${MAP_VB_W}" height="${MAP_VB_H}" fill="url(#landGrad)"/>
+    <path d="M-10 190 C 60 165, 120 210, 200 175 S 330 150, 340 180 L 340 240 L -10 240 Z" fill="#BFD9E8" opacity="0.55"/>
+    <path d="M230 -10 C 210 40, 260 70, 235 120 S 260 190, 230 240" stroke="#BFD9E8" stroke-width="14" fill="none" opacity="0.35"/>
+    <ellipse cx="52" cy="118" rx="46" ry="34" fill="#CFE4D3"/>
+    <g opacity="0.9" filter="url(#blockShadow)">
+      <rect x="168" y="30" width="30" height="22" rx="3" fill="#C7D2CC"/>
+      <rect x="204" y="42" width="24" height="34" rx="3" fill="#BFCBC4"/>
+      <rect x="238" y="20" width="20" height="46" rx="3" fill="#C7D2CC"/>
+      <rect x="186" y="120" width="34" height="24" rx="3" fill="#C2CDC7"/>
+      <rect x="228" y="118" width="22" height="40" rx="3" fill="#BFCBC4"/>
+      <rect x="20" y="26" width="26" height="18" rx="3" fill="#C7D2CC"/>
+      <rect x="252" y="150" width="26" height="20" rx="3" fill="#C2CDC7"/>
+      <rect x="94" y="190" width="30" height="18" rx="3" fill="#BFCBC4"/>
+      <rect x="270" y="90" width="20" height="20" rx="3" fill="#C7D2CC"/>
+    </g>
+    <g stroke="#F5F8F6" stroke-width="6" opacity="0.9">
+      <path d="M0 96 H320"/>
+      <path d="M0 210 H320"/>
+      <path d="M96 0 V232"/>
+      <path d="M256 0 V232"/>
+    </g>
+    <g id="rangeRings"></g>
+    <g id="pinsLayer"></g>
+    <g id="avatarLayer"></g>
+  </svg>`;
+}
+
+function pinColorFor(s){ return s.excluded ? '#9AA4AC' : GRADE_HEX[s.grade]; }
+
+function renderMapDynamic(){
+  const svgRoot = document.querySelector('#mapWrap svg');
+  if(!svgRoot) return;
+
+  // range rings around user (0.5 / 1 / 1.5km)
+  const ringsG = svgRoot.querySelector('#rangeRings');
+  ringsG.innerHTML = [0.5,1,1.5].map(km => {
+    const r = km*SCALE_PX_PER_KM;
+    return `<circle cx="${userPos.x}" cy="${userPos.y}" r="${r}" fill="none" stroke="#2C79B0" stroke-width="1" stroke-dasharray="3 4" opacity="0.28"/>`;
+  }).join('');
+
+  // shelter pins
+  const pinsG = svgRoot.querySelector('#pinsLayer');
+  pinsG.innerHTML = SCORED.map(s => {
+    const color = pinColorFor(s);
+    const label = s.excluded ? '−' : s.grade;
+    return `<g class="pin" data-id="${s.id}" style="cursor:pointer;" transform="translate(${s.x},${s.y})">
+      <path d="M0 -20 C -9 -20 -14 -13 -14 -6 C -14 3 0 16 0 16 C 0 16 14 3 14 -6 C 14 -13 9 -20 0 -20Z" fill="${color}" stroke="#fff" stroke-width="1.5"/>
+      <circle cx="0" cy="-7" r="6.2" fill="#fff"/>
+      <text x="0" y="-4" text-anchor="middle" font-family="JetBrains Mono" font-size="7.5" font-weight="800" fill="${color}">${label}</text>
+    </g>`;
+  }).join('');
+  pinsG.querySelectorAll('.pin').forEach(p=>{
+    p.addEventListener('click', (e)=>{ e.stopPropagation(); openDetail(parseInt(p.dataset.id)); });
+  });
+
+  // avatar
+  const avG = svgRoot.querySelector('#avatarLayer');
+  avG.innerHTML = `
+    <circle cx="${userPos.x}" cy="${userPos.y}" r="15" fill="#2C79B0" opacity="0.16"/>
+    <circle class="avatar-pulse" cx="${userPos.x}" cy="${userPos.y}" r="9" fill="#2C79B0" opacity="0.25"/>
+    <circle cx="${userPos.x}" cy="${userPos.y}" r="7" fill="#2C79B0" stroke="#fff" stroke-width="2.5"/>
+  `;
+}
+
+function updateHintVisibility(){
+  const hint = document.getElementById('mapHintEl');
+  if(hint) hint.classList.toggle('hide', hasDraggedOnce);
+}
+
+function initMap(){
+  const wrap = document.getElementById('mapWrap');
+  wrap.innerHTML = buildMapBase() +
+    `<div class="map-hint" id="mapHintEl">${svg('<path d="M12 2v20M2 12h20"/>',12,2)} 내 위치를 드래그해보세요</div>
+     <div class="map-reset" id="mapResetBtn" title="위치 초기화">${svg('<path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/>',15,1.8)}</div>
+     <div class="map-badge">${svg('<circle cx="12" cy="12" r="9"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2"/>',12,1.8)} 반경 ${((MAP_VB_W/2)/SCALE_PX_PER_KM).toFixed(1)}km 지도</div>`;
+  renderMapDynamic();
+
+  const svgEl = wrap.querySelector('svg');
+  let dragging = false;
+
+  function svgPoint(evt){
+    const pt = svgEl.createSVGPoint();
+    pt.x = evt.clientX; pt.y = evt.clientY;
+    const ctm = svgEl.getScreenCTM().inverse();
+    const p = pt.matrixTransform(ctm);
+    return { x: clamp(p.x, 8, MAP_VB_W-8), y: clamp(p.y, 8, MAP_VB_H-8) };
+  }
+
+  function movePointer(evt){
+    const p = svgPoint(evt);
+    userPos = p;
+    hasDraggedOnce = true;
+    updateHintVisibility();
+    renderMapDynamic();
+    recomputeScored();
+    renderLiveRank();
+  }
+
+  svgEl.addEventListener('pointerdown', (evt)=>{
+    dragging = true;
+    svgEl.setPointerCapture(evt.pointerId);
+    movePointer(evt);
+  });
+  svgEl.addEventListener('pointermove', (evt)=>{
+    if(!dragging) return;
+    movePointer(evt);
+  });
+  svgEl.addEventListener('pointerup', (evt)=>{ dragging = false; });
+  svgEl.addEventListener('pointercancel', ()=>{ dragging = false; });
+
+  document.getElementById('mapResetBtn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    userPos = { x:150, y:128 };
+    renderMapDynamic();
+    recomputeScored();
+    renderLiveRank();
+    showToast('위치가 초기 값으로 재설정되었습니다');
+  });
+}
+
+/* ============================================================
+   LIVE RANK PREVIEW (updates while dragging)
+============================================================ */
+function renderLiveRank(){
+  const wrap = document.getElementById('liveRankWrap');
+  if(!wrap) return;
+  const top3 = SCORED.filter(s=>!s.excluded).sort((a,b)=>b.total-a.total).slice(0,3);
+  wrap.innerHTML = top3.map(s => `
+    <div class="live-row" onclick="openDetail(${s.id})" style="cursor:pointer;">
+      <div class="lr-grade" style="background:${GRADE_HEX[s.grade]}">${s.grade}</div>
+      <div class="lr-name">${s.name}</div>
+      <div class="lr-dist">${s.distanceKm.toFixed(2)}km · ${s.total}점</div>
+    </div>
+  `).join('');
+}
+
+/* ============================================================
+   SEARCH SCREEN CONTROLS
+============================================================ */
+function renderControls(){
+  const dRow = document.getElementById('disasterRow');
+  dRow.innerHTML = Object.keys(WEIGHT_PROFILES).map(type=>{
+    const w = WEIGHT_PROFILES[type];
+    return `<div class="dchip ${type===currentDisasterType?'on':''}" data-type="${type}">${ICON[w.icon]} ${DISASTER_LABEL[type]}</div>`;
+  }).join('');
+  dRow.querySelectorAll('.dchip').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      dRow.querySelectorAll('.dchip').forEach(c=>c.classList.remove('on'));
+      el.classList.add('on');
+      currentDisasterType = el.dataset.type;
+      recomputeScored();
+      renderLiveRank();
+      showToast(DISASTER_DESC[currentDisasterType]);
+    });
+  });
+
+  document.getElementById('groupVal').textContent = groupSize;
+
+  const fRow = document.getElementById('filterRow');
+  fRow.innerHTML = `
+    <div class="chip ${accessibleOnly?'on':''}" id="chipAccessible">${ICON.wheelchair} 무장애 경로만</div>
+    <div class="chip ${offlineMode?'on':''}" id="chipOffline">${ICON.wifiOff} 오프라인 모드</div>
+  `;
+  document.getElementById('chipAccessible').addEventListener('click', function(){
+    accessibleOnly = !accessibleOnly;
+    this.classList.toggle('on', accessibleOnly);
+  });
+  document.getElementById('chipOffline').addEventListener('click', function(){
+    offlineMode = !offlineMode;
+    this.classList.toggle('on', offlineMode);
+    if(offlineMode){ offlineSince = Date.now(); showToast('오프라인 모드 — 마지막 수신 데이터로 전환합니다'); }
+    else { offlineSince = null; showToast('온라인 상태로 전환되었습니다'); }
+    renderOfflineBanners();
+  });
+}
+function changeGroup(delta){
+  groupSize = clamp(groupSize + delta, 1, 20);
+  document.getElementById('groupVal').textContent = groupSize;
+}
+
+/* ============================================================
+   OFFLINE BANNER
+============================================================ */
+function offlineElapsedText(){
+  if(!offlineMode || !offlineSince) return '';
+  const mins = Math.floor((Date.now()-offlineSince)/60000);
+  return mins < 1 ? '방금 전' : `${mins}분 전`;
+}
+function offlineBannerHTML(){
+  if(!offlineMode) return '';
+  return `<div class="notice warn">
+    <span class="ic">${ICON.wifiOff}</span>
+    <div><b>오프라인 모드 — ${offlineElapsedText()} 캐시 데이터</b>네트워크가 연결되면 최신 정보로 자동 갱신됩니다. 실제 상황과 다를 수 있으니 참고용으로만 확인하세요.</div>
+  </div>`;
+}
+function renderOfflineBanners(){
+  ['listOfflineBanner','detailOfflineBanner','routeOfflineBanner','congOfflineBanner','reportOfflineBanner'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = offlineBannerHTML();
+  });
+}
+
+/* ============================================================
+   LIST SCREEN
+============================================================ */
+function setSort(el, key){
+  document.querySelectorAll('.tabs .tab').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  currentSort = key;
+  renderList();
+}
+function renderList(){
+  renderOfflineBanners();
+  document.getElementById('listSub').textContent = `${DISASTER_LABEL[currentDisasterType]} · 반경 2km`;
+
+  const tags = [`${ICON.compass} ${DISASTER_LABEL[currentDisasterType]}`];
+  if(groupSize>1) tags.push(`${ICON.users} 동행 ${groupSize}명`);
+  if(accessibleOnly) tags.push(`${ICON.wheelchair} 무장애 경로만`);
+  document.getElementById('summaryTags').innerHTML = tags.map(t=>`<div class="stag">${t}</div>`).join('');
+
+  let active = SCORED.filter(s=>!s.excluded);
+  if(accessibleOnly) active = active.filter(s=>s.accessible);
+  const excluded = SCORED.filter(s=>s.excluded);
+
+  let sorted = [...active];
+  if(currentSort==='score') sorted.sort((a,b)=>b.total-a.total);
+  if(currentSort==='dist') sorted.sort((a,b)=>a.distanceKm-b.distanceKm);
+  if(currentSort==='cong') sorted.sort((a,b)=>a.occRatio-b.occRatio);
+
+  if(sorted.length===0){
+    document.getElementById('listWrap').innerHTML = `<div class="empty-state">조건에 맞는 대피소가 없습니다.<br>필터를 조정해보세요.</div>`;
+  } else {
+    document.getElementById('listWrap').innerHTML = sorted.map((s,i)=>{
+      const ring = ringSVG(s.total/100, GRADE_HEX[s.grade], 52, 6);
+      const groupWarn = groupSize>1 && s.remaining < groupSize;
+      return `<div class="card" style="animation-delay:${i*45}ms" onclick="openDetail(${s.id})">
+        <div style="position:relative;">${ring}
+          <div class="ring-val" style="width:52px;height:52px;">
+            <div class="n" style="color:${GRADE_HEX[s.grade]}">${s.total}</div>
+            <div class="g" style="color:${GRADE_HEX[s.grade]}">${s.grade}</div>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-top">
+            <div class="card-rank">${i+1}</div>
+            <div class="card-title">${s.name}</div>
+          </div>
+          <div class="card-meta">
+            <span>${s.distanceKm.toFixed(2)}km</span><span class="dot"></span>
+            <span>남은 ${s.remaining}/${s.capacity}명 (${Math.round(s.remRatio*100)}%)</span>
+          </div>
+          <div class="card-meta" style="margin-top:5px;">
+            <span class="badge ${s.grade==='A'||s.grade==='B'?'badge-safe':s.grade==='C'?'badge-mid':'badge-warn'}">${GRADE_WORD[s.grade]}</span>
+            ${s.accessible ? `<span class="badge badge-info">${ICON.wheelchair} 무장애</span>` : ''}
+            ${groupWarn ? '<span class="badge badge-warn">인원 초과 주의</span>' : ''}
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  const excWrap = document.getElementById('excludedWrap');
+  const excLabel = document.getElementById('excludedLabel');
+  if(excluded.length){
+    excLabel.style.display='flex';
+    excWrap.innerHTML = excluded.map(s=>{
+      const reason = !s.operating ? '운영 중지' : '수용 인원 0명';
+      return `<div class="card excluded-card">
+        <div style="position:relative;">${ringSVG(0,'#C7CDD2',52,6)}
+          <div class="ring-val" style="width:52px;height:52px;"><div class="n" style="color:#9AA4AC">-</div></div>
+        </div>
+        <div class="card-body">
+          <div class="card-top"><div class="card-title">${s.name}</div></div>
+          <div class="card-meta"><span>${s.distanceKm.toFixed(2)}km</span><span class="tag-excluded">${reason}</span></div>
+        </div>
+      </div>`;
+    }).join('');
+  } else { excLabel.style.display='none'; excWrap.innerHTML=''; }
+}
+
+/* ============================================================
+   DETAIL SCREEN
+============================================================ */
+function renderDetail(id){
+  const s = SCORED.find(x=>x.id===id);
+  if(!s) return;
+  document.getElementById('detailTitle').textContent = s.name;
+  const ring = ringSVG(s.total/100, GRADE_HEX[s.grade], 76, 8);
+  const groupWarn = groupSize>1 && s.remaining < groupSize;
+
+  document.getElementById('detailBody').innerHTML = `
+    <div class="hero-img"><div class="blob"></div><div class="blob2"></div><div class="grid"></div>
+      <div class="icwrap">${ICON.building}</div>
+    </div>
+    ${groupWarn ? `<div class="notice warn"><span class="ic">${ICON.warningTri}</span><div><b>동행 ${groupSize}명 수용 어려움</b>현재 남은 자리가 ${s.remaining}명으로, 선택하신 동행 인원을 모두 수용하기 어려울 수 있습니다.</div></div>` : ''}
+    <div class="score-hero">
+      <div style="position:relative;">${ring}
+        <div class="ring-val" style="width:76px;height:76px;">
+          <div class="n" style="font-size:22px;color:${GRADE_HEX[s.grade]}">${s.total}</div>
+          <div class="g" style="color:${GRADE_HEX[s.grade]}">${s.grade}등급</div>
+        </div>
+      </div>
+      <div class="score-hero-text">
+        <div class="grade-word" style="color:${GRADE_HEX[s.grade]}">${GRADE_WORD[s.grade]}</div>
+        <div class="sub">${s.distanceKm.toFixed(2)}km · ${s.address}</div>
+        <div class="profile">${DISASTER_LABEL[currentDisasterType]} 기준 평가</div>
+      </div>
+    </div>
+
+    <div class="infogrid">
+      <div class="infobox"><div class="lbl">${ICON.users} 수용 가능 인원</div><div class="val">${s.remaining} / ${s.capacity}명</div></div>
+      <div class="infobox"><div class="lbl">${ICON.activity} 현재 혼잡도</div><div class="val" style="color:${congestionLevel(s.occRatio).hex}">${congestionLevel(s.occRatio).label} (${Math.round(s.occRatio*100)}%)</div></div>
+      <div class="infobox"><div class="lbl">${ICON.shieldWar} 시설 안전 상태</div><div class="val">${['','낮음','보통','높음'][s.facilitySafety]}</div></div>
+      <div class="infobox"><div class="lbl">${ICON.compass} 운영 상태</div><div class="val" style="color:${s.operating?'var(--grade-a)':'var(--danger)'}">${s.operating?'운영 중':'운영 중지'}</div></div>
+    </div>
+
+    <div class="section-label">추천 점수 세부 내역 (${DISASTER_LABEL[currentDisasterType]} 가중치)</div>
+    ${s.breakdown.map(b=>`
+      <div class="breakdown-row">
+        <div class="lbl">${ICON[b.icon]||''} ${b.label}</div>
+        <div class="breakdown-track"><div class="breakdown-fill" style="width:${b.max? (b.pts/b.max)*100 : 0}%"></div></div>
+        <div class="pts">${b.pts}/${b.max}</div>
+      </div>`).join('')}
+
+    <div class="section-label">${ICON.medkit} 생필품 재고 현황 <span style="font-weight:600;color:var(--ink-faint);">(정원 ${s.capacity}명 기준 권장수량 대비)</span></div>
+    <div class="supply-row">
+      ${computeSupplyInfo(s).map(item=>`
+        <div class="supply-item">
+          <div class="si-ic">${ICON[item.icon]}</div>
+          <div class="si-body">
+            <div class="si-top">
+              <div class="si-name">${item.label}</div>
+              <div class="si-qty">${item.qty.toLocaleString()} / ${item.rec.toLocaleString()}${item.unit}</div>
+            </div>
+            <div class="si-track"><div class="si-fill" style="width:${item.ratio*100}%; background:${item.color};"></div></div>
+          </div>
+          <div class="si-status" style="background:${item.color}1A; color:${item.color};">${item.status}</div>
+        </div>
+      `).join('')}
+      <div class="supply-foot">권장 수량은 수용 정원 기준 자체 산정 기준이며(생수·식량 1인 1개, 구급키트 50명당 1세트 등), 정부 공개 데이터에는 물품 재고 항목이 없어 실제 서비스 시에는 관리기관 점검값으로 대체되어야 합니다.</div>
+    </div>
+
+    <div class="section-label">${ICON.phoneIcon} 관리 정보</div>
+    <div class="mgmt-row">
+      <div class="mi-ic">${ICON.building.replace(/width="44" height="44"/,'width="16" height="16"')}</div>
+      <div style="flex:1;"><div class="mi-label">관할 기관</div><div class="mi-val">${s.manager || '정보 없음'}</div></div>
+    </div>
+    <div class="mgmt-row">
+      <div class="mi-ic">${ICON.phoneIcon}</div>
+      <div style="flex:1;"><div class="mi-label">문의 연락처</div><div class="mi-val">${s.phone || '정보 없음'}</div></div>
+    </div>
+    <div class="mgmt-row">
+      <div class="mi-ic">${ICON.calendarIcon}</div>
+      <div style="flex:1;"><div class="mi-label">최종 물자 점검일</div><div class="mi-val">${s.lastCheck || '정보 없음'}</div></div>
+    </div>
+
+    <div class="infogrid">
+      <div class="infobox"><div class="lbl">시설 규모</div><div class="val" style="font-size:12.5px;">${s.area}</div></div>
+      <div class="infobox"><div class="lbl">${ICON.routeIcon} 이동 경로 안전성</div><div class="val">${['','위험','보통','안전'][s.routeSafety]}</div></div>
+      <div class="infobox"><div class="lbl">${ICON.wheelchair} 무장애 경로</div><div class="val" style="color:${s.accessible?'var(--grade-a)':'var(--ink-soft)'}">${s.accessible?'가능':'계단 구간 있음'}</div></div>
+      <div class="infobox"><div class="lbl">${ICON.users} 동행 ${groupSize}명 수용</div><div class="val" style="color:${groupWarn?'var(--danger)':'var(--grade-a)'}">${groupWarn?'수용 어려움':'수용 가능'}</div></div>
+    </div>
+
+    <div class="action-row">
+      <button class="btn-primary" style="flex:1;" onclick="go('route')">${ICON.routeIcon} 길찾기</button>
+      <button class="btn-ghost" style="flex:1;" onclick="showToast('공유 링크가 복사되었습니다')">${ICON.share} 공유하기</button>
+    </div>
+    <button class="btn-ghost" style="margin-top:9px;" onclick="go('congestion')">${ICON.activity} 실시간 혼잡도 자세히 보기</button>
+  `;
+}
+
+/* ============================================================
+   ROUTE SCREEN
+============================================================ */
+function renderRoute(id){
+  const s = SCORED.find(x=>x.id===id);
+  if(!s) return;
+
+  const accessNote = document.getElementById('routeAccessNote');
+  accessNote.innerHTML = s.accessible
+    ? `<div class="notice"><span class="ic">${ICON.wheelchair}</span><div><b>무장애 경로 안내 가능</b>경사로·엘리베이터를 이용한 이동 경로로 안내합니다.</div></div>`
+    : `<div class="notice warn"><span class="ic">${ICON.alert || ''}</span><div><b>계단 구간 포함</b>이 경로에는 계단 구간이 있어 무장애 경로가 필요한 경우 다른 대피소를 확인해주세요.</div></div>`;
+
+  // curved route from user position to shelter, drawn on same map scale
+  const ux=userPos.x, uy=userPos.y, sx=s.x, sy=s.y;
+  const midx=(ux+sx)/2, midy=(uy+sy)/2 - 26;
+  document.getElementById('routeMap').innerHTML = `
+    <svg viewBox="0 0 ${MAP_VB_W} ${MAP_VB_H}" width="100%">
+      <rect width="${MAP_VB_W}" height="${MAP_VB_H}" fill="#EDF2EE"/>
+      <g stroke="#DCE4DF" stroke-width="6"><path d="M0 96 H${MAP_VB_W}"/><path d="M0 176 H${MAP_VB_W}"/><path d="M96 0 V${MAP_VB_H}"/><path d="M224 0 V${MAP_VB_H}"/></g>
+      <path d="M${ux} ${uy} Q ${midx} ${midy} ${sx} ${sy}" fill="none" stroke="#2C79B0" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 10">
+        <animate attributeName="stroke-dashoffset" from="60" to="0" dur="1.4s" repeatCount="indefinite"/>
+      </path>
+      <path d="M${ux} ${uy} Q ${midx} ${midy} ${sx} ${sy}" fill="none" stroke="#2C79B0" stroke-width="4" stroke-linecap="round" opacity="0.28"/>
+      <circle cx="${ux}" cy="${uy}" r="7" fill="#2C79B0" stroke="#fff" stroke-width="2.5"/>
+      <circle cx="${sx}" cy="${sy}" r="8" fill="${GRADE_HEX[s.grade]}" stroke="#fff" stroke-width="2.5"/>
+    </svg>`;
+
+  const meters = Math.round(s.distanceKm*1000);
+  const steps = [
+    {ic:'arrowUp', text:'직진', dist:`${Math.round(meters*0.24)}m`},
+    {ic:'arrowRight', text:'우회전', dist:`${Math.round(meters*0.16)}m`},
+    {ic:'arrowUp', text:'직진', dist:`${Math.round(meters*0.40)}m`},
+    {ic:'arrowLeft', text:'좌회전', dist:`${Math.round(meters*0.14)}m`},
+    {ic:'flag', text:`${s.name} 도착`, dist:`${Math.round(meters*0.06)}m`},
+  ];
+  document.getElementById('routeSteps').innerHTML = steps.map(st=>`
+    <div class="step step-line">
+      <div class="step-ic">${ICON[st.ic]}</div>
+      <div><div class="step-text">${st.text}</div><div class="step-dist">${st.dist}</div></div>
+    </div>`).join('') + `<div class="infobox" style="margin-top:4px;"><div class="lbl">예상 총 거리</div><div class="val">${meters}m · 도보 약 ${Math.max(1,Math.round(meters/70))}분</div></div>`;
+}
+
+/* ============================================================
+   CONGESTION SCREEN
+============================================================ */
+function renderCongestion(id){
+  const s = SCORED.find(x=>x.id===id);
+  if(!s) return;
+  const lvl = congestionLevel(s.occRatio);
+  const ring = ringSVG(1-s.occRatio, lvl.hex, 150, 16);
+  document.getElementById('congHero').innerHTML = `
+    <div style="position:relative;">${ring}
+      <div class="ring-val" style="width:150px;height:150px;">
+        <div class="n" style="font-size:28px;color:${lvl.hex}">${Math.round((1-s.occRatio)*100)}%</div>
+        <div class="g" style="color:${lvl.hex};font-size:11px;">여유 비율</div>
+      </div>
+    </div>
+    <div class="status-word" style="color:${lvl.hex}">${lvl.label}</div>
+    <div class="status-sub">${s.name}</div>
+  `;
+  document.getElementById('congStats').innerHTML = `
+    <div class="stat-box"><div class="n">${s.remaining} / ${s.capacity}</div><div class="l">남은 인원</div></div>
+    <div class="stat-box"><div class="n">${(CONG_LOG[id]&&CONG_LOG[id][0])?CONG_LOG[id][0].t:'-'}</div><div class="l">최근 업데이트</div></div>
+  `;
+  const logs = CONG_LOG[id]||[];
+  const dotColor = {'여유':'#1E9E6B','보통':'#D9B23C','혼잡':'#DB8B2C','수용 어려움':'#C94848'};
+  document.getElementById('congLog').innerHTML = logs.length ? logs.map(l=>`
+    <div class="log-row">
+      <div class="log-dot" style="background:${dotColor[l.level]}"></div>
+      <div class="log-text">${l.level}</div>
+      <div class="log-time">${l.t}</div>
+    </div>`).join('') : `<div style="font-size:12.5px;color:var(--ink-faint);padding:10px 0;">아직 신고된 내역이 없습니다.</div>`;
+}
+
+/* ============================================================
+   REPORT SCREEN
+============================================================ */
+let selectedReportLevel = null;
+function renderReport(id){
+  const s = SCORED.find(x=>x.id===id);
+  document.getElementById('reportShelterName').textContent = s ? `${s.name} · ${s.distanceKm.toFixed(2)}km` : '대피소를 먼저 선택해주세요';
+  selectedReportLevel = null;
+  document.getElementById('reportNote').value = '';
+  const opts = [
+    {k:'여유', hex:'#1E9E6B'}, {k:'보통', hex:'#D9B23C'}, {k:'혼잡', hex:'#DB8B2C'}, {k:'수용 어려움', hex:'#C94848'},
+  ];
+  document.getElementById('reportGrid').innerHTML = opts.map(o=>`
+    <div class="report-opt" data-k="${o.k}">
+      <div style="width:22px;height:22px;border-radius:50%;background:${o.hex};margin:0 auto;"></div>
+      <div class="n">${o.k}</div>
+    </div>`).join('');
+  document.querySelectorAll('.report-opt').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      document.querySelectorAll('.report-opt').forEach(o=>o.classList.remove('sel'));
+      el.classList.add('sel');
+      selectedReportLevel = el.dataset.k;
+    });
+  });
+}
+function submitReport(){
+  if(offlineMode){ showToast('오프라인 상태에서는 신고할 수 없어요. 온라인 연결 후 다시 시도하세요'); return; }
+  if(!selectedReportLevel){ showToast('혼잡도를 선택해주세요'); return; }
+  const id = currentShelterId;
+  if(id != null){ if(!CONG_LOG[id]) CONG_LOG[id] = []; CONG_LOG[id].unshift({level:selectedReportLevel, t:'방금 전'}); }
+  showToast('신고가 접수되었습니다. 감사합니다');
+  setTimeout(()=>go('congestion'), 700);
+}
+
+/* ============================================================
+   TOAST
+============================================================ */
+let toastTimer;
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+/* ============================================================
+   DATA SOURCE STATUS BANNER (search screen)
+============================================================ */
+function dataSourceBannerHTML(){
+  if(usingRealData){
+    return `<div class="notice info">
+      <span class="ic">${ICON.check ? ICON.check : ''}</span>
+      <div><b>행정안전부 공공데이터 연동됨</b>${REGION_LABEL} 실제 민방위대피소 ${SHELTERS.length}곳을 불러왔습니다. (수용인원·운영여부는 실데이터, 혼잡도·물품·안전성은 정부 미제공 항목이라 추정값입니다)</div>
+    </div>`;
+  }
+  return `<div class="notice warn">
+    <span class="ic">${ICON.warningTri}</span>
+    <div><b>예시(샘플) 데이터 표시 중 — ${REGION_LABEL}</b>실제 데이터로 전환하려면 safetydata.go.kr에서 인증키를 발급받아 스크립트 상단 SAFETY_API_KEY에 입력하세요.</div>
+  </div>`;
+}
+function renderDataSourceBanner(){
+  const el = document.getElementById('dataSourceBanner');
+  if(el) el.innerHTML = dataSourceBannerHTML();
+}
+
+/* ============================================================
+   INIT
+============================================================ */
+async function initApp(){
+  initMap();
+  renderControls();
+  renderLiveRank();
+  renderOfflineBanners();
+  renderDataSourceBanner();
+
+  const real = await fetchRealShelters();
+  if(real && real.length){
+    SHELTERS = real;
+    usingRealData = true;
+    userPos = { x: MAP_VB_W/2, y: MAP_VB_H/2 };
+    recomputeScored();
+    initMap();
+    renderLiveRank();
+    renderDataSourceBanner();
+    showToast(`${REGION_LABEL} 실제 대피소 ${SHELTERS.length}곳을 불러왔습니다`);
+  }
+}
+initApp();
+</script>
+</body>
+</html>
